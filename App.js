@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Button, StyleSheet, View } from 'react-native';
+import { Alert, Button, Platform, StyleSheet, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 
@@ -13,30 +13,35 @@ Notifications.setNotificationHandler({
   },
 });
 
-const allowsNotificationsAsync = async () => {
-  const settings = await Notifications.getPermissionsAsync();
-  return (
-    settings.granted ||
-    settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
-  );
-};
-
-const requestPermissionsAsync = async () => {
-  return await Notifications.requestPermissionsAsync({
-    ios: {
-      allowAlert: true,
-      allowBadge: true,
-      allowSound: true,
-      allowAnnouncements: true,
-    },
-  });
-};
-
 export default function App() {
   useEffect(() => {
-    Notifications.getExpoPushTokenAsync().then((pushTokenData) => {
+    (async () => {
+      const { status } = await Notifications.getPermissionsAsync();
+      let finalStatus = status;
+
+      if (finalStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        Alert.alert(
+          'Permissions required',
+          'Push notifications need appropriate permissions.'
+        );
+        return;
+      }
+
+      const pushTokenData = await Notifications.getExpoPushTokenAsync();
       console.log(pushTokenData);
-    });
+
+      if (Platform.OS === 'android') {
+        Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -65,13 +70,6 @@ export default function App() {
   }, []);
 
   const scheduleNotificationHandler = async () => {
-    const hasPushNotificationPermissionGranted =
-      await allowsNotificationsAsync();
-
-    if (!hasPushNotificationPermissionGranted) {
-      await requestPermissionsAsync();
-    }
-
     Notifications.scheduleNotificationAsync({
       content: {
         title: 'My local notification!',
