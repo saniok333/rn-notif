@@ -34,6 +34,12 @@ const requestPermissionsAsync = async () => {
 
 export default function App() {
   useEffect(() => {
+    Notifications.getExpoPushTokenAsync().then((pushTokenData) => {
+      console.log(pushTokenData);
+    });
+  }, []);
+
+  useEffect(() => {
     const subscription1 = Notifications.addNotificationReceivedListener(
       (notification) => {
         console.log('N R');
